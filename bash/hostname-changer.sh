@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# This script is for the bash lab on variables, dynamic data, and user input
+# This script is for the bash lab on varibles, dynamic data, and user input
 # Download the script, do the tasks described in the comments
 # Test your script, run it on the production server, screenshot that
 # Send your script to your github repo, and submit the URL with screenshot on Blackboard
