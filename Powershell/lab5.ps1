@@ -1,44 +1,55 @@
-#-System displays the cpu, OS, RAM, Video reports ony
-	#-Disks displays the disks report only
-	#-Network displays the network report only
-	#$args
-	param ( [switch]$System, 
-	        [switch]$Disks,
-	        [switch]$Network
-	)
-	
+param (
+        [switch]$System,
+        [switch]$Disks,
+        [switch]$Network
+)
 
-	
+if ( $System -eq $false -and $Disks -eq $false -and $Network -eq $false ) {
+        systemReport.ps1
+}
+else {
+        Write-Output ""
+        Write-Output "System Information Report"
+        Write-Output "--------------------------"
+        Write-Output "
+        "
+        if ( $System -eq $true ) {
+    
+            Write-Output "Processor"
+            Write-Output "----------------------"
+            (Get-ProcessorInfo | Out-String).Trim()
+            Write-Output "
+            "    
+            Write-Output "Operating System"
+            Write-Output "----------------------"
+            (Get-SysInfo | Out-String).Trim()
+            Write-Output "
+    
+            "
+            Write-Output "Memory"
+            Write-Output "----------------------"
+            (Get-RAM | Out-String).Trim()
+            Write-Output "
+            "
+            Write-Output "Video Card"
+            Write-Output "----------------------"
+            (Get-VideoCard | Out-String).Trim()
+            Write-Output ""
+        }
 
-	
+        if ( $Disks -eq $true ) {
+    
+            Write-Output "Physical Disk Drives"
+            Write-Output "----------------------"
+            (Get-Summary | Out-String).Trim()
+            Write-Output ""
+        }
 
-	if ($System -eq $false -and $Disks -eq $false -and $Network -eq $false) {
-	    full_report.ps1
-	} else {
-	    "`nYour System Information Report"
-	    if ($System) {
-	        "`n`nProcessor:"
-	        "==================================="
-	        (CPU_info | fl | out-string).trim()
-	        "`n`nOperating system:"
-	        "==================================="
-	        (operating_system_info | fl | out-string).trim()
-	        "`n`nMemory:"
-	        "==================================="
-	        (memory_info | ft -AutoSize | out-string).trim()
-	        "`n`nVideo Card:"
-	        "==================================="
-	        (video_card | fl | out-string).trim()
-	    }
-	    if ($Disks) {
-	        "`n`nDisk:"
-	        "==================================="
-	        (disk_info | ft -AutoSize Drive,Vendor,Model,“Size(GB)”,"Free Space(GB)","Space Uasge(%)" | out-string).trim()
-	    }
-	    if ($Network) {
-	        "`n`nNetwork Adapter:"
-	        "==================================="
-	        (Network_info | ft -AutoSize | out-string).trim()
-	    }
-	}
+        if ( $Network -eq $true ) {
 
+            Write-Output "Network Adapter"
+            Write-Output "----------------------"
+            (Get-IPConfig | Out-String).Trim()
+            Write-Output ""
+        }
+}
