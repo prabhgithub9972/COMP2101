@@ -1,90 +1,169 @@
-    ####################################
-#     My system info functions     #
-####################################
-function system_hardware_info {
-    gwmi win32_computersystem | select Name,Manufacturer,Model
+   function welcome {
+write-output "Welcome to planet $env:computername Overlord $env:username"
+$now = get-date -format 'HH:MM tt on dddd'
+write-output "It's $now."
 }
-function operating_system_info {
-    gwmi win32_operatingsystem | select Caption,Version
+
+
+function get-cpuinfo {
+get-ciminstance cim_processor | 
+select Name, MaxClockSpeed, CurrentClockSpeed, NumberOfCores, Manufacturer
 }
-function CPU_info {
-    gwmi win32_processor | select Name,NumberOfCores,
-                                  @{ n = "L1CacheSize" ; e = { if($_.L1CacheSize -ne $null) {
-                                                                    $_.L1CacheSize
-                                                               } else {
-                                                                    "data unavailable"
-                                                               }
-                                                             }
-                                  }, 
-                                  @{ n = "L2CacheSize" ; e = { if($_.L2CacheSize -ne $null) {
-                                                                    $_.L2CacheSize
-                                                               } else {
-                                                                    "data unavailable"
-                                                               }
-                                                             }                              
-                                  }, 
-                                  @{ n = "L3CacheSize" ; e = { if($_.L3CacheSize -ne $null) {
-                                                                    $_.L3CacheSize
-                                                               } else {
-                                                                    "data unavailable"
-                                                               }
-                                                             }                              
-                                  }
+
+
+function get-mydisks {
+
+(new-object -typename psobject -property @{
+ Model=(get-disk).Model;
+ Manufacturer=(get-disk).Manufacturer;
+ SerialNumber=(get-disk).SerialNumber;
+ FirmwareVersion=(get-disk).FirmwareVersion;
+ Size=(get-disk).Size;
+
+ }) | ft
+
 }
-function memory_info {
-    $RAMs = 0
-    gwmi win32_physicalmemory | foreach{
-        new-object -typename psobject -property @{  Vendor = $_.Manufacturer;
-                                                    "Speed(MHz)" =  if($_.Speed -ne $null) {
-                                                                        $_.Speed
-                                                                    } else {
-                                                                        "data unavailable"
-                                                                    };
-                                                    "Size(GB)" = $_.Capacity / 1GB -as [int];
-                                                    Bank = $_.BankLabel;
-                                                    Slot = $_.DeviceLocator                                                    
-                                                }
-        $RAMs += ($_.Capacity / 1GB -as [int])
-    }
-    "Total RAM: " + $RAMs.toString() + " GB"
+
+function get-sysInfo {
+
+"**System Information**"
+
+
+
+    Get-WmiObject win32_computersystem
+
 }
-function disk_info {
-    $diskdrives = Get-CIMInstance CIM_diskdrive
-    $diskinfo = foreach ($disk in $diskdrives) { 
-        $partitions = $disk|get-cimassociatedinstance -resultclassname CIM_diskpartition 
-        foreach ($partition in $partitions) { 
-            $logicaldisks = $partition | get-cimassociatedinstance -resultclassname CIM_logicaldisk 
-            foreach ($logicaldisk in $logicaldisks) { 
-                new-object -typename psobject -property @{ Drive=$logicaldisk.deviceid; 
-                                                           Vendor=$disk.Manufacturer; 
-                                                           Model=$disk.model; 
-                                                           “Size(GB)”="{0:N2}" -f ($partition.size / 1gb); 
-                                                           "Free Space(GB)"= "{0:N2}" -f (($logicaldisk.freespace) / 1gb)
-                                                           "Space Uasge(%)" = "{0:N2}" -f (($logicaldisk.size-$logicaldisk.freespace) * 100 / $logicaldisk.size)
-                                                          } 
-            } 
-        }
-    } 
-    $diskinfo
+
+function get-osInfo {
+
+"**OS Information**
+"
+
+    Get-WmiObject -Class win32_operatingsystem |
+        foreach {
+            New-Object -TypeName psobject -Property @{
+                OSName = $_.Name
+                Version = $_.Version
+                }
+        } 
+        ft -AutoSize OsName,
+                     Version
+
 }
-function video_card {
-    gwmi win32_videocontroller | select @{ n = "Vendor"; e={$_.AdapterCompatibility}},
-                                        Description,
-                                        @{ n = "Current screen resolution"; e = { if ($_.CurrentHorizontalResolution -ne $null -and $_.CurrentVerticalResolution -ne $null) {
-                                                                                    ($_.CurrentHorizontalResolution).toString() +" x " + ($_.CurrentVerticalResolution).toString() 
-                                                                                  } else {
-                                                                                    "data unavailable"
-                                                                                  }
-                                                                                }
-                                        }
+
+function get-proInfo {
+
+"**Processor Information ** 
+"
+
+
+
+    Get-WmiObject -Class win32_processor |
+        foreach {
+            New-Object -TypeName psobject -Property @{
+                Speed = $_.MaxClockSpeed
+                NumberOfCores = $_.NumberOfCores
+                L1CacheSize = "data unavailable"
+                L2CacheSize = "data unavailable"
+                L3CacheSize = $_.L3CacheSize
+                }
+        } 
+        ft -AutoSize Speed,
+                     NumberOfCores,
+                     L1CacheSize,
+                     L2CacheSize,
+                     L3CacheSize
+
+                     "
+                     "
+
 }
-function Network_info {
-    get-ciminstance win32_networkadapterconfiguration |
-        Where-Object {$_.IPEnabled -eq $True} |
-        select Description,
-       	       Index,
-               IPAddress,
-               IPSubnet,
-               DNSDomain,
-               @{n="DNSServer";e={$_.DNSServerSearchOrder}} 
+
+function get-ramInfo {
+
+"**RAM information**"
+
+
+    $totalCapacity = 0
+
+    Get-WmiObject -Class win32_physicalmemory |
+        foreach {
+            New-Object -TypeName psobject -Property @{
+                Vendor = $_.Manufacturer
+                Model = "data unavailable"
+                "Size(MB)" = $_.capacity/1mb
+                Bank = $_.banklabel
+                Slot = $_.devicelocator
+                }
+            $totalCapacity += $_.capacity/1mb
+        } |
+            ft -auto Vendor,
+                      Model,
+                     "Size(MB)",
+                      Bank,
+                      Slot
+
+      "Total RAM: ${totalCapacity}MB
+      
+      "
+
+}
+
+function get-diskInfo {
+
+"**Disk Information**
+"
+
+
+
+        $diskdrives = Get-CIMInstance CIM_diskdrive
+
+  foreach ($disk in $diskdrives) {
+      $partitions = $disk|get-cimassociatedinstance -resultclassname CIM_diskpartition
+      foreach ($partition in $partitions) {
+            $logicaldisks = $partition | get-cimassociatedinstance -resultclassname CIM_logicaldisk
+            foreach ($logicaldisk in $logicaldisks) {
+                     new-object -typename psobject -property @{Vendor=$disk.Manufacturer
+                                                               Model=$disk.Model
+                                                               "SizeFree(GB)"=$logicaldisks.FreeSpace / 1gb -as [int]
+                                                               "SpaceFree(%)"=($logicaldisk.FreeSpace/$logicaldisk.size)*100 -as [int]
+                                                               "Size(GB)"=$logicaldisk.size / 1gb -as [int]
+                                                               } | ft
+           }
+      }
+  }
+
+}
+
+
+function get-adaptInfo {
+
+  "**Network Adapters** "
+
+
+
+  get-ciminstance win32_networkadapterconfiguration |
+     Where-Object ipenabled -eq True |
+     Select-Object Discription, index, IPAddress, subnetmask, dnsdomain, dnsserver
+        ft
+
+}
+
+function get-videoInfo {
+
+"**Video Card Information**
+"
+
+
+
+    Get-WmiObject -Class win32_videocontroller |
+        foreach {
+            New-Object -TypeName psobject -Property @{
+                Vendor = $_.Name
+                Description = $_.Description
+                CurrentScreenResolution = ($_.CurrentHorizontalResolution) * ($_.CurrentVerticalResolution)
+                
+                }
+        } 
+
 }
